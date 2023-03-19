@@ -27,8 +27,7 @@ citeseer：包含3312个节点，4723条边构成的引文网络。标签共6个
 
 通过测试，采用以下设置：<br />
 train_nodes = 140# 训练节点数量<br />
-epochs = 100# 迭代次数<br />
-hidden_dim=128# 隐层维度<br />            
+epochs = 100# 迭代次数<br />     
 att_heads=6# 注意力头数量<br />
 dropout_rate = 0.5# dropout概率率<br />
 Adam LR = 5e-3# 学习率<br />
