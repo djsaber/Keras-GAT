@@ -7,7 +7,6 @@ from keras.layers import Layer, Dropout, LeakyReLU, Input
 from keras.models import Model
 
 
-
 class GraphAttentionLayer(Layer):
     """实现多头图注意力层
     参数：
@@ -26,25 +25,27 @@ class GraphAttentionLayer(Layer):
         - kernel_constraint：权重约束方法
         - attn_kernel_constraint：注意力核权重约束方法
     """
-    def __init__(self,
-                 hidden_dim,
-                 attn_heads,
-                 attn_heads_reduction='concat',
-                 dropout_rate=0.5,
-                 activation='relu',
-                 use_bias=True,
-                 kernel_initializer='glorot_uniform',
-                 bias_initializer='zero',
-                 attn_kernel_initializer='glorot_uniform',
-                 kernel_regularizer=None,
-                 bias_regularizer=None,
-                 attn_kernel_regularizer=None,
-                 activity_regularizer=None,
-                 kernel_constraint=None,
-                 bias_constraint=None,
-                 attn_kernel_constraint=None,
-                 **kwargs):
-        
+    def __init__(
+        self,
+        hidden_dim,
+        attn_heads,
+        attn_heads_reduction='concat',
+        dropout_rate=0.5,
+        activation='relu',
+        use_bias=True,
+        kernel_initializer='glorot_uniform',
+        bias_initializer='zero',
+        attn_kernel_initializer='glorot_uniform',
+        kernel_regularizer=None,
+        bias_regularizer=None,
+        attn_kernel_regularizer=None,
+        activity_regularizer=None,
+        kernel_constraint=None,
+        bias_constraint=None,
+        attn_kernel_constraint=None,
+        **kwargs
+        ):
+        super(GraphAttentionLayer, self).__init__(**kwargs)
         if attn_heads_reduction not in {'concat', 'average'}:
             raise ValueError('Possbile reduction method: concat, average')
         
@@ -75,50 +76,52 @@ class GraphAttentionLayer(Layer):
 
         self.kernels = []
         self.biases = []
-        self.attn_kernels = []
-
-        super(GraphAttentionLayer, self).__init__(**kwargs)
-
+        self.attn_kernels = []       
 
     def build(self, input_shape):
+        super(GraphAttentionLayer, self).build(input_shape)
         input_dim = input_shape[0][-1]
         # 初始化每个head参数
         for head in range(self.attn_heads):
             # Layer kernel
-            kernel = self.add_weight(name=f'kernel_{head}',
-                                     shape=(input_dim, self.hidden_dim),
-                                     initializer=self.kernel_initializer,
-                                     regularizer=self.kernel_regularizer,
-                                     constraint=self.kernel_constraint)
+            kernel = self.add_weight(
+                name=f'kernel_{head}',
+                shape=(input_dim, self.hidden_dim),
+                initializer=self.kernel_initializer,
+                regularizer=self.kernel_regularizer,
+                constraint=self.kernel_constraint
+                )
             self.kernels.append(kernel)
 
             # Layer bias
             if self.use_bias:
-                bias = self.add_weight(name=f'bias_{head}',
-                                       shape=(self.hidden_dim, ),
-                                       initializer=self.bias_initializer,
-                                       regularizer=self.bias_regularizer,
-                                       constraint=self.bias_constraint)
+                bias = self.add_weight(
+                    name=f'bias_{head}',
+                    shape=(self.hidden_dim, ),
+                    initializer=self.bias_initializer,
+                    regularizer=self.bias_regularizer,
+                    constraint=self.bias_constraint
+                    )
                 self.biases.append(bias)
 
             # Attention kernels
-            attn_kernel_self = self.add_weight(name=f'attn_kernel_self_{head}',
-                                               shape=(self.hidden_dim, 1),
-                                               initializer=self.attn_kernel_initializer,
-                                               regularizer=self.attn_kernel_regularizer,
-                                               constraint=self.attn_kernel_constraint)
+            attn_kernel_self = self.add_weight(
+                name=f'attn_kernel_self_{head}',
+                shape=(self.hidden_dim, 1),
+                initializer=self.attn_kernel_initializer,
+                regularizer=self.attn_kernel_regularizer,
+                constraint=self.attn_kernel_constraint
+                )
+            attn_kernel_neighs = self.add_weight(
+                name=f'attn_kernel_neighs_{head}',
+                shape=(self.hidden_dim, 1),
+                initializer=self.attn_kernel_initializer,
+                regularizer=self.attn_kernel_regularizer,
+                constraint=self.attn_kernel_constraint
+                )
+            self.attn_kernels.append([attn_kernel_self, attn_kernel_neighs])      
 
-            attn_kernel_neighs = self.add_weight(name=f'attn_kernel_neighs_{head}',
-                                               shape=(self.hidden_dim, 1),
-                                               initializer=self.attn_kernel_initializer,
-                                               regularizer=self.attn_kernel_regularizer,
-                                               constraint=self.attn_kernel_constraint)
-            self.attn_kernels.append([attn_kernel_self, attn_kernel_neighs])
-
-        super(GraphAttentionLayer, self).build(input_shape)
-
-
-    def call(self, inputs, *args, **kwargs):
+    def call(self, inputs):
         X = inputs[0]
         A = inputs[1]
         mask = -10e9 * (1.0 - A)
@@ -151,20 +154,16 @@ class GraphAttentionLayer(Layer):
             outputs_heads.append(nodes_features)
 
         if self.attn_heads_reduction == 'concat':
-            # (nodes, heads*fature_dim)
             output = K.concatenate(outputs_heads)
         else:
-            # (nodes, feature_dim)
             output = K.mean(K.stack(outputs_heads), axis=0)
         
         output = self.activation(output)
         return output
 
-
     def compute_output_shape(self, input_shape):
         output_shape = (input_shape[0][0], self.output_dim)
         return output_shape
-
 
     def get_config(self):
         config = super().get_config()
@@ -201,24 +200,25 @@ class GAT(Model):
 
     def __init__(self, hidden_dim, output_dim, attn_heads, dropout_rate, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.layer1 = GraphAttentionLayer(hidden_dim=hidden_dim,
-                                          attn_heads=attn_heads,
-                                          attn_heads_reduction='concat',
-                                          dropout_rate=dropout_rate,
-                                          activation='elu',
-                                          kernel_regularizer=l2(5e-4/2),
-                                          attn_kernel_regularizer=l2(5e-4/2),
-                                          )
+        self.layer1 = GraphAttentionLayer(
+            hidden_dim=hidden_dim,
+            attn_heads=attn_heads,
+            attn_heads_reduction='concat',
+            dropout_rate=dropout_rate,
+            activation='elu',
+            kernel_regularizer=l2(5e-4/2),
+            attn_kernel_regularizer=l2(5e-4/2)
+            )
         self.dropout = Dropout(dropout_rate)
-        self.layer2 = GraphAttentionLayer(hidden_dim=output_dim,
-                                          attn_heads=attn_heads,
-                                          attn_heads_reduction='average',
-                                          dropout_rate=dropout_rate,
-                                          activation='softmax',
-                                          kernel_regularizer=l2(5e-4/2),
-                                          attn_kernel_regularizer=l2(5e-4/2),
-                                          )
-
+        self.layer2 = GraphAttentionLayer(
+            hidden_dim=output_dim,
+            attn_heads=attn_heads,
+            attn_heads_reduction='average',
+            dropout_rate=dropout_rate,
+            activation='softmax',
+            kernel_regularizer=l2(5e-4/2),
+            attn_kernel_regularizer=l2(5e-4/2)
+            )
 
     def call(self, inputs):
         A = inputs[1]

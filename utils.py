@@ -3,6 +3,7 @@
 import pandas as pd
 import numpy as np
 
+
 def load_citeseer(path, train_nodes=140):
     raw_data = pd.read_csv(path+'/citeseer.content', sep='\t', header=None)
     raw_data_cites = pd.read_csv(path+'/citeseer.cites', sep='\t', header=None)
